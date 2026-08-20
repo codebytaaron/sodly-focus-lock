@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Lockdown</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #card {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    background: rgba(20, 20, 24, 0.92);
+    color: #f4f4f5;
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    -webkit-app-region: drag;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #status {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff5f56;
+  }
+  #timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+  #stray {
+    font-size: 12px;
+    color: #ffb454;
+    min-height: 14px;
+  }
+  #unlockWrap {
+    -webkit-app-region: no-drag;
+  }
+  #unlockBtn {
+    position: relative;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: #f4f4f5;
+    font-size: 12px;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  #unlockFill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    background: rgba(255, 95, 86, 0.55);
+    transition: width 0.05s linear;
+  }
+  #unlockLabel {
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+  <div id="card">
+    <div id="top">
+      <div id="status"><span id="dot"></span><span id="statusText">Focus Lock active</span></div>
+      <div id="timer">--:--</div>
+    </div>
+    <div id="stray"></div>
+    <div id="unlockWrap">
+      <button id="unlockBtn">
+        <div id="unlockFill"></div>
+        <span id="unlockLabel">Hold 3s to unlock early</span>
+      </button>
+    </div>
+  </div>
+
+<script>
+  const dot = document.getElementById('dot');
+  const statusText = document.getElementById('statusText');
+  const timerEl = document.getElementById('timer');
+  const strayEl = document.getElementById('stray');
+  const btn = document.getElementById('unlockBtn');
+  const fill = document.getElementById('unlockFill');
+  const label = document.getElementById('unlockLabel');
+
+  const HOLD_MS = 3000;
+  let holdStart = null;
+  let holdRaf = null;
+
+  function resetHold() {
+    holdStart = null;
+    if (holdRaf) cancelAnimationFrame(holdRaf);
+    holdRaf = null;
+    fill.style.width = '0%';
+    label.textContent = 'Hold 3s to unlock early';
+  }
+
+  function tickHold() {
+    if (!holdStart) return;
+    const elapsed = Date.now() - holdStart;
+    const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+    fill.style.width = pct + '%';
+    if (elapsed >= HOLD_MS) {
+      label.textContent = 'Unlocking...';
+      window.lockdown.requestUnlock();
+      resetHold();
+      return;
+    }
+    holdRaf = requestAnimationFrame(tickHold);
+  }
+
+  function startHold() {
+    holdStart = Date.now();
+    tickHold();
+  }
+
+  btn.addEventListener('mousedown', startHold);
+  btn.addEventListener('mouseup', resetHold);
+  btn.addEventListener('mouseleave', resetHold);
+
+  window.lockdown.onState((data) => {
+    timerEl.textContent = data.remaining || '--:--';
+    if (data.locked) {
+      dot.style.background = '#ff5f56';
+      statusText.textContent = 'Focus Lock active';
+    }
+  });
+
+  window.lockdown.onStray(({ owner, strayCount }) => {
+    strayEl.textContent = `You switched to "${owner}" — that's ${strayCount} time${strayCount === 1 ? '' : 's'} away. Back to your call.`;
+    setTimeout(() => { strayEl.textContent = ''; }, 4000);
+  });
+
+  window.lockdown.onEnded(({ reason }) => {
+    dot.style.background = '#3ddc84';
+    statusText.textContent = reason === 'manual-unlock' ? 'Unlocked' : 'Lock complete';
+    strayEl.textContent = '';
+  });
+
+  window.lockdown.getState().then((data) => {
+    timerEl.textContent = data.remaining || '--:--';
+  });
+</script>
+</body>
+</html>
