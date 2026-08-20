@@ -1,5 +1,5 @@
 {
-  "name": "lockdown",
+  "name": "sodly",
   "version": "0.1.0",
   "description": "A self-imposed focus lock for video calls. Start Lock Mode before a meeting and get out of your own way.",
   "main": "src/main.js",
@@ -20,8 +20,8 @@
     "active-win": "^8.2.1"
   },
   "build": {
-    "appId": "com.codebytaaron.lockdown",
-    "productName": "Lockdown",
+    "appId": "com.codebytaaron.sodly",
+    "productName": "Sodly",
     "files": [
       "src/**/*",
       "assets/**/*",
@@ -42,7 +42,7 @@
       "icon": "assets/icon.png"
     },
     "dmg": {
-      "title": "Lockdown"
+      "title": "Sodly"
     },
     "win": {
       "target": [

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lockdown — a self-imposed focus lock for video calls</title>
+<title>Sodly — a self-imposed focus lock for video calls</title>
 <style>
   :root {
     --bg: #0f0f12;
@@ -246,7 +246,7 @@
 <body>
   <div class="wrap">
     <header class="nav">
-      <div class="brand"><span class="dot"></span> Lockdown</div>
+      <div class="brand"><span class="dot"></span> Sodly</div>
       <nav>
         <a href="#how">How it works</a>
         <a href="#honesty">What it won't do</a>
@@ -258,7 +258,7 @@
       <span class="kicker">Self-imposed. Opt-in. For your own calls.</span>
       <h1>Lock yourself in before the meeting pulls you out.</h1>
       <p class="sub">
-        Lockdown is a menu-bar app that puts up a persistent reminder and gently
+        Sodly is a menu-bar app that puts up a persistent reminder and gently
         nags you back when you drift to Slack, Twitter, or fifteen open tabs
         during a call. You start it. You can always stop it. It just makes
         drifting take a little more deliberate effort.
@@ -275,7 +275,7 @@
           <div class="mock-timer">18:42</div>
         </div>
         <div class="mock-msg">You switched to "Slack" — that's 2 times away. Back to your call.</div>
-        <div class="mock-btn">Hold 3s to unlock early</div>
+        <div class="mock-btn">Hold 9s to give up early</div>
       </div>
     </section>
 
@@ -285,17 +285,17 @@
         <div class="step">
           <div class="num">1</div>
           <h3>Start Focus Lock</h3>
-          <p>Click the menu-bar icon before your call, pick a duration (15/25/45/60 min), and Lockdown puts a small always-on-top banner at the top of your screen.</p>
+          <p>Click the menu-bar icon before your call, pick a duration (15/25/45/60 min), and Sodly puts a small always-on-top banner at the top of your screen.</p>
         </div>
         <div class="step">
           <div class="num">2</div>
           <h3>Get nudged, not blocked</h3>
-          <p>If you switch to an app that isn't your call (Zoom, Meet, Teams, FaceTime), Lockdown notices, counts it, and brings the reminder back to the front.</p>
+          <p>If you switch to an app that isn't your call (Zoom, Meet, Teams, FaceTime), Sodly notices, counts it, and brings the reminder back to the front.</p>
         </div>
         <div class="step">
           <div class="num">3</div>
-          <h3>Unlock on purpose</h3>
-          <p>Timer runs out on its own, or you can hold the unlock button for 3 full seconds to end early. No hidden bypass, no accidental exit either.</p>
+          <h3>Give up on purpose</h3>
+          <p>Timer runs out on its own, or you can hold the button for 9 full seconds to give up early. No hidden bypass, no accidental exit either — and macOS's own Force Quit always works as a safety valve.</p>
         </div>
       </div>
     </section>
@@ -304,14 +304,14 @@
       <div class="honesty">
         <h3>⚠️ Read this before you install</h3>
         <p style="color:var(--muted); font-size:14px; margin:0 0 4px;">
-          Lockdown is a focus aid, not a parental-control or enterprise-lockdown
+          Sodly is a focus aid, not a parental-control or enterprise-lockdown
           tool. It's built to be honest about what it can and can't do on macOS
           without special system entitlements:
         </p>
         <ul>
-          <li><strong>It cannot truly prevent you from switching apps.</strong> macOS doesn't let ordinary apps block Cmd+Tab or the Dock without Accessibility permissions and much deeper OS integration. Lockdown detects and reacts — it doesn't lock the OS.</li>
+          <li><strong>It cannot truly prevent you from switching apps.</strong> macOS doesn't let ordinary apps block Cmd+Tab or the Dock without Accessibility permissions and much deeper OS integration. Sodly detects and reacts — it doesn't lock the OS.</li>
           <li><strong>It works by watching focus changes</strong> (Electron focus/blur events plus periodic active-window polling) and popping the reminder back in front of you.</li>
-          <li><strong>It always has an escape hatch.</strong> A deliberate hold-to-unlock control is a design choice, not a bug — an inescapable lock on your own machine would be dangerous, not helpful.</li>
+          <li><strong>It always has an escape hatch.</strong> A deliberate hold-to-give-up control is a design choice, not a bug, and macOS's own Force Quit (Cmd+Opt+Esc) always works by design — an inescapable lock on your own machine would be dangerous, not helpful. Force-quitting or rebooting leaves no background process running.</li>
           <li><strong>It's for locking your own device, voluntarily.</strong> There is no remote control, no admin mode, no way to lock someone else's computer.</li>
         </ul>
       </div>
@@ -320,8 +320,8 @@
     <section id="download">
       <h2>Download</h2>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/codebytaaron/lockdown/releases">⬇ Lockdown.dmg (macOS)</a>
-        <a class="btn btn-secondary" href="https://github.com/codebytaaron/lockdown/releases">Lockdown-Setup.exe (Windows)</a>
+        <a class="btn btn-primary" href="https://github.com/codebytaaron/lockdown/releases">⬇ Sodly.dmg (macOS)</a>
+        <a class="btn btn-secondary" href="https://github.com/codebytaaron/lockdown/releases">Sodly-Setup.exe (Windows)</a>
       </div>
       <p style="text-align:center; color:var(--muted); font-size:13px; margin-top:16px;">
         The macOS build is ad-hoc signed (no paid Apple Developer certificate yet), so on first

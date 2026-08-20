@@ -1,15 +1,15 @@
-const { app, Tray, Menu, BrowserWindow, ipcMain, screen, nativeImage, powerMonitor } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, screen, nativeImage, powerMonitor, globalShortcut } = require('electron');
 const path = require('path');
 
 // active-win gives us the frontmost app/window title so we can tell when the
 // user has switched away from an allowlisted call app. It's an optional
 // dependency: if the native module fails to load on some platform/arch we
-// still run Lockdown, just without the "away from call" nag feature.
+// still run Sodly, just without the "away from call" nag feature.
 let activeWin = null;
 try {
   activeWin = require('active-win');
 } catch (err) {
-  console.warn('[lockdown] active-win unavailable, focus detection disabled:', err.message);
+  console.warn('[sodly] active-win unavailable, focus detection disabled:', err.message);
 }
 
 const ALLOWLIST_KEYWORDS = [
@@ -17,12 +17,22 @@ const ALLOWLIST_KEYWORDS = [
   'google meet', 'meet.google',
   'microsoft teams', 'teams.microsoft',
   'facetime',
-  'lockdown', 'electron' // our own app / dev window
+  'sodly', 'electron' // our own app / dev window
 ];
+
+// How long the overlay must be held to give up early. Deliberately long so
+// it isn't a casual "meh, unlock" reflex — you have to really mean it.
+const HOLD_TO_GIVE_UP_MS = 9000;
+
+// Debounce window for re-raising the overlay after a detected stray focus.
+// Bursts of focus-loss events within this window collapse into one re-raise.
+const REFOCUS_DEBOUNCE_MS = 200;
 
 let tray = null;
 let overlayWindow = null;
 let pollTimer = null;
+let refocusTimer = null;
+let refocusPending = false;
 
 const state = {
   locked: false,
@@ -69,11 +79,30 @@ function createOverlayWindow() {
   return win;
 }
 
+// Re-assert alwaysOnTop/visible-on-all-workspaces and bring the overlay back
+// to front. Debounced so a rapid burst of "you left the allowlist" polling
+// events doesn't stack duplicate re-raises or spam timers.
+function scheduleReassertOverlay() {
+  if (!state.locked || !overlayWindow) return;
+  refocusPending = true;
+  if (refocusTimer) return; // already scheduled, coalesce
+  refocusTimer = setTimeout(() => {
+    refocusTimer = null;
+    if (!refocusPending) return;
+    refocusPending = false;
+    if (!state.locked || !overlayWindow) return;
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    overlayWindow.showInactive();
+    overlayWindow.focus();
+  }, REFOCUS_DEBOUNCE_MS);
+}
+
 function updateTray() {
   if (!tray) return;
   const label = state.locked
-    ? `Lockdown — locked (${remainingLabel()})`
-    : 'Lockdown — off';
+    ? `Sodly — locked (${remainingLabel()})`
+    : 'Sodly — off';
   tray.setToolTip(label);
   tray.setContextMenu(buildTrayMenu());
 }
@@ -99,15 +128,54 @@ function buildTrayMenu() {
     ...durationItems,
     { type: 'separator' },
     {
-      label: 'Unlock now (requires hold-to-confirm in overlay)',
+      label: 'Give up early (requires hold-to-confirm in overlay)',
       enabled: state.locked,
       click: () => {
-        if (overlayWindow) overlayWindow.webContents.send('lockdown:focus-unlock');
+        if (overlayWindow) overlayWindow.webContents.send('sodly:focus-unlock');
       }
     },
     { type: 'separator' },
-    { label: 'Quit Lockdown', click: () => { forceStopLock(); app.quit(); } }
+    // Deliberate action from the tray always works — this is not the thing
+    // we're guarding against. We only intercept the reflexive Cmd+Q.
+    { label: 'Quit Sodly', click: () => { forceStopLock(); app.quit(); } }
   ]);
+}
+
+function setKioskChrome(active) {
+  if (process.platform === 'darwin' && app.dock) {
+    if (active) app.dock.hide();
+    else app.dock.show();
+  }
+  // Menu bar (tray) icon itself stays up so the user always has a way to
+  // reach "Give up early" / Quit — hiding the tray as well would remove the
+  // only deliberate way out short of Force Quit. Kiosk-style here means:
+  // no Dock icon, no app menu bar surfaced, overlay always on top.
+  if (Menu.setApplicationMenu) {
+    Menu.setApplicationMenu(active ? Menu.buildFromTemplate([]) : null);
+  }
+}
+
+function registerQuitGuard() {
+  // Intercept the reflexive Cmd+Q while locked so an instinctive quit
+  // doesn't kill an active lock. "Quit" from the tray menu bypasses this
+  // (it calls forceStopLock + app.quit directly), and macOS's own Force
+  // Quit (Cmd+Opt+Esc) / Activity Monitor / killall are never intercepted —
+  // see the HARD SAFETY CONSTRAINT note below.
+  const ok = globalShortcut.register('CommandOrControl+Q', () => {
+    if (state.locked && overlayWindow) {
+      overlayWindow.webContents.send('sodly:quit-blocked');
+      scheduleReassertOverlay();
+      return; // swallow the reflexive quit
+    }
+    app.quit();
+  });
+  if (!ok) {
+    console.warn('[sodly] could not register Cmd+Q guard shortcut');
+  }
+}
+
+function unregisterQuitGuard() {
+  globalShortcut.unregister('CommandOrControl+Q');
 }
 
 function startLock(durationMs) {
@@ -120,6 +188,9 @@ function startLock(durationMs) {
   if (!overlayWindow) overlayWindow = createOverlayWindow();
   overlayWindow.showInactive();
 
+  setKioskChrome(true);
+  registerQuitGuard();
+
   sendState();
   startPolling();
   updateTray();
@@ -130,8 +201,12 @@ function endLock(reason = 'completed') {
   state.endsAt = null;
   state.durationMs = 0;
   stopPolling();
+  refocusPending = false;
+  if (refocusTimer) { clearTimeout(refocusTimer); refocusTimer = null; }
+  unregisterQuitGuard();
+  setKioskChrome(false);
   if (overlayWindow) {
-    overlayWindow.webContents.send('lockdown:ended', { reason });
+    overlayWindow.webContents.send('sodly:ended', { reason });
     setTimeout(() => {
       if (overlayWindow) overlayWindow.hide();
     }, 1500);
@@ -145,11 +220,12 @@ function forceStopLock() {
 
 function sendState() {
   if (overlayWindow) {
-    overlayWindow.webContents.send('lockdown:state', {
+    overlayWindow.webContents.send('sodly:state', {
       locked: state.locked,
       endsAt: state.endsAt,
       remaining: remainingLabel(),
-      strayCount: state.strayCount
+      strayCount: state.strayCount,
+      holdMs: HOLD_TO_GIVE_UP_MS
     });
   }
 }
@@ -175,10 +251,11 @@ function startPolling() {
       if (owner && !isAllowlisted(owner, title)) {
         state.strayCount += 1;
         if (overlayWindow) {
-          overlayWindow.webContents.send('lockdown:stray', { owner, title, strayCount: state.strayCount });
-          overlayWindow.showInactive();
-          overlayWindow.focus();
+          overlayWindow.webContents.send('sodly:stray', { owner, title, strayCount: state.strayCount });
         }
+        // Re-raise within ~150-300ms, debounced against bursts of
+        // consecutive stray detections from the polling loop.
+        scheduleReassertOverlay();
       }
     } catch (err) {
       // active-win can throw on permission issues; fail silently per poll
@@ -193,15 +270,16 @@ function stopPolling() {
   }
 }
 
-ipcMain.on('lockdown:request-unlock', () => {
+ipcMain.on('sodly:request-unlock', () => {
   endLock('manual-unlock');
 });
 
-ipcMain.handle('lockdown:get-state', () => ({
+ipcMain.handle('sodly:get-state', () => ({
   locked: state.locked,
   endsAt: state.endsAt,
   remaining: remainingLabel(),
-  strayCount: state.strayCount
+  strayCount: state.strayCount,
+  holdMs: HOLD_TO_GIVE_UP_MS
 }));
 
 app.whenReady().then(() => {
@@ -217,7 +295,7 @@ app.whenReady().then(() => {
     trayIcon = nativeImage.createEmpty();
   }
   tray = new Tray(trayIcon.isEmpty() ? nativeImage.createEmpty() : trayIcon);
-  tray.setToolTip('Lockdown');
+  tray.setToolTip('Sodly');
   updateTray();
 
   powerMonitor.on('lock-screen', () => {
@@ -229,3 +307,19 @@ app.on('window-all-closed', (e) => {
   // Menu bar app: never quit just because windows closed.
   e.preventDefault();
 });
+
+app.on('will-quit', () => {
+  // Belt-and-suspenders: always release the shortcut so we never leave a
+  // dangling global hotkey registration behind, whether we quit via the
+  // tray, the OS, or a crash-adjacent path.
+  globalShortcut.unregisterAll();
+});
+
+// HARD SAFETY CONSTRAINT: this app must never attempt to block, delay, or
+// survive macOS's own Force Quit (Cmd+Opt+Esc), an Activity Monitor kill, or
+// `killall`. Those are OS-level SIGTERM/SIGKILL deliveries to this process;
+// Electron/Node cannot intercept SIGKILL at all, and we deliberately do not
+// install any SIGTERM handler, relaunch-on-exit logic, launchd
+// KeepAlive/watcher, or helper process here. When the OS kills this
+// process, it dies, full stop, and nothing of it remains running — that is
+// the safety valve and it is not to be crossed.

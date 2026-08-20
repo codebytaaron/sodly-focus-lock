@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Lockdown</title>
+<title>Sodly</title>
 <style>
   html, body {
     margin: 0;
@@ -94,7 +94,7 @@
     <div id="unlockWrap">
       <button id="unlockBtn">
         <div id="unlockFill"></div>
-        <span id="unlockLabel">Hold 3s to unlock early</span>
+        <span id="unlockLabel">Hold 9s to give up early</span>
       </button>
     </div>
   </div>
@@ -108,16 +108,20 @@
   const fill = document.getElementById('unlockFill');
   const label = document.getElementById('unlockLabel');
 
-  const HOLD_MS = 3000;
+  let HOLD_MS = 9000;
   let holdStart = null;
   let holdRaf = null;
+
+  function holdLabelText() {
+    return `Hold ${Math.round(HOLD_MS / 1000)}s to give up early`;
+  }
 
   function resetHold() {
     holdStart = null;
     if (holdRaf) cancelAnimationFrame(holdRaf);
     holdRaf = null;
     fill.style.width = '0%';
-    label.textContent = 'Hold 3s to unlock early';
+    label.textContent = holdLabelText();
   }
 
   function tickHold() {
@@ -126,8 +130,8 @@
     const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
     fill.style.width = pct + '%';
     if (elapsed >= HOLD_MS) {
-      label.textContent = 'Unlocking...';
-      window.lockdown.requestUnlock();
+      label.textContent = 'Giving up...';
+      window.sodly.requestUnlock();
       resetHold();
       return;
     }
@@ -143,27 +147,36 @@
   btn.addEventListener('mouseup', resetHold);
   btn.addEventListener('mouseleave', resetHold);
 
-  window.lockdown.onState((data) => {
+  window.sodly.onState((data) => {
     timerEl.textContent = data.remaining || '--:--';
+    if (data.holdMs) HOLD_MS = data.holdMs;
+    if (!holdStart) label.textContent = holdLabelText();
     if (data.locked) {
       dot.style.background = '#ff5f56';
       statusText.textContent = 'Focus Lock active';
     }
   });
 
-  window.lockdown.onStray(({ owner, strayCount }) => {
+  window.sodly.onStray(({ owner, strayCount }) => {
     strayEl.textContent = `You switched to "${owner}" — that's ${strayCount} time${strayCount === 1 ? '' : 's'} away. Back to your call.`;
     setTimeout(() => { strayEl.textContent = ''; }, 4000);
   });
 
-  window.lockdown.onEnded(({ reason }) => {
+  window.sodly.onQuitBlocked(() => {
+    strayEl.textContent = 'Cmd+Q blocked while locked — hold the button below if you really want out.';
+    setTimeout(() => { strayEl.textContent = ''; }, 4000);
+  });
+
+  window.sodly.onEnded(({ reason }) => {
     dot.style.background = '#3ddc84';
     statusText.textContent = reason === 'manual-unlock' ? 'Unlocked' : 'Lock complete';
     strayEl.textContent = '';
   });
 
-  window.lockdown.getState().then((data) => {
+  window.sodly.getState().then((data) => {
     timerEl.textContent = data.remaining || '--:--';
+    if (data.holdMs) HOLD_MS = data.holdMs;
+    label.textContent = holdLabelText();
   });
 </script>
 </body>
