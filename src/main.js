@@ -1,16 +1,16 @@
 const { app, Tray, Menu, BrowserWindow, ipcMain, screen, nativeImage, powerMonitor, globalShortcut } = require('electron');
 const path = require('path');
 
-// active-win gives us the frontmost app/window title so we can tell when the
-// user has switched away from an allowlisted call app. It's an optional
-// dependency: if the native module fails to load on some platform/arch we
-// still run Sodly, just without the "away from call" nag feature.
+// get-windows gives us the frontmost app/window title so we can tell when the
+// user has switched away from an allowlisted call app. It's ESM-only, so it's
+// loaded with import(). If it fails to load on some platform/arch we still
+// run Sodly, just without the "away from call" nag feature.
 let activeWin = null;
-try {
-  activeWin = require('active-win');
-} catch (err) {
-  console.warn('[sodly] active-win unavailable, focus detection disabled:', err.message);
-}
+import('get-windows')
+  .then((mod) => { activeWin = mod.activeWindow; })
+  .catch((err) => {
+    console.warn('[sodly] get-windows unavailable, focus detection disabled:', err.message);
+  });
 
 const ALLOWLIST_KEYWORDS = [
   'zoom', 'zoom.us',
@@ -258,7 +258,7 @@ function startPolling() {
         scheduleReassertOverlay();
       }
     } catch (err) {
-      // active-win can throw on permission issues; fail silently per poll
+      // get-windows can throw on permission issues; fail silently per poll
     }
   }, 2000);
 }

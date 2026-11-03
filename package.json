@@ -13,11 +13,8 @@
     "build:win": "electron-builder --win --publish=never"
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
-  },
-  "dependencies": {
-    "active-win": "^8.2.1"
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "com.codebytaaron.sodly",
@@ -34,7 +31,13 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "identity": null,
       "hardenedRuntime": false,
@@ -46,7 +49,12 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icon.png"
     },
@@ -54,5 +62,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "dependencies": {
+    "get-windows": "^10.0.0"
   }
 }
