@@ -4,7 +4,7 @@
   "description": "A self-imposed focus lock for video calls. Start Lock Mode before a meeting and get out of your own way.",
   "main": "src/main.js",
   "author": "codebytaaron",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",

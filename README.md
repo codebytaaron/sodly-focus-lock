@@ -127,4 +127,4 @@ away, and the overlay/timer/hold-to-give-up all continue to work normally.
 
 ## License
 
-MIT
+© 2026 Teddy Aaron. All rights reserved. The code is public to view only. You may not copy, reuse, deploy or redistribute it without written permission. See [LICENSE](LICENSE).
